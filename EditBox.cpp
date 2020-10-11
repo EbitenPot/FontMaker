@@ -44,6 +44,7 @@ BEGIN_MESSAGE_MAP(CEditBox, CDialog)
 	ON_BN_CLICKED(IDC_BTN_NUM, &CEditBox::OnBnClickedBtnNum)
 	ON_BN_CLICKED(IDC_BTN_LETTER, &CEditBox::OnBnClickedBtnLetter)
 	ON_BN_CLICKED(IDOK, &CEditBox::OnBnClickedOk)
+	ON_BN_CLICKED(IDC_BTN_DEDUP, &CEditBox::OnBnClickedBtnDedup)
 END_MESSAGE_MAP()
 
 
@@ -51,11 +52,11 @@ END_MESSAGE_MAP()
 void CEditBox::OnBnClickedBtnLoad()
 {
 	int len;
-	CFile cf;
-	WCHAR *pstr;
-	CHAR  *pbuff;
-	CString name;
 	UINT size;
+	char *buf;
+	WCHAR *text;
+	CFile cf;
+	CString name;
 	CFileDialog fd(1,NULL,NULL,OFN_HIDEREADONLY|OFN_FILEMUSTEXIST|OFN_ENABLESIZING,L"文本文件|*.txt|所有文件|*.*||");
 	if(fd.DoModal()!=IDOK)
 	{
@@ -68,64 +69,71 @@ void CEditBox::OnBnClickedBtnLoad()
 		return;
 	}
 	size = (UINT)cf.GetLength();
-	pbuff = (CHAR*)malloc(size+2);
-	if(pbuff == NULL)
+	buf = (char *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY, size + 1);
+	if(buf == NULL)
 	{
 		cf.Close();
 		MessageBox(L"内存不足!",L"载入失败",MB_OK|MB_ICONINFORMATION);
 		return;
 	}
-	pstr = (WCHAR*)malloc(size*2+2);
-	if(pstr == NULL)
+
+	if(cf.Read(buf, size) != size)
 	{
-		free(pbuff);
 		cf.Close();
-		MessageBox(L"内存不足!",L"载入失败",MB_OK|MB_ICONINFORMATION);
-		return;
-	}
-	memset(pbuff,0,size+2);
-	if(cf.Read(pbuff,size)!=size)
-	{
-		free(pbuff);
-		free(pstr);
-		cf.Close();
+		HeapFree(GetProcessHeap(), 0, buf);
 		MessageBox(L"读取文件时发生错误!",L"载入失败",MB_OK|MB_ICONINFORMATION);
 		return;
 	}
-	len = UTF8ToUnicode(pbuff,pstr,size*2);
-	m_editTable.SetWindowText(pstr);
-	free(pbuff);
-	free(pstr);
 	cf.Close();
+
+	len = UTF8ToUnicode(buf, NULL, 0) + 1;
+	text = (WCHAR *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY, len * sizeof(WCHAR));
+	if(text == NULL)
+	{
+		HeapFree(GetProcessHeap(), 0, buf);
+		MessageBox(L"内存不足!",L"载入失败",MB_OK|MB_ICONINFORMATION);
+		return;
+	}
+
+	len = UTF8ToUnicode(buf, text, len);
+	m_editTable.SetWindowText(text);
+	HeapFree(GetProcessHeap(), 0, text);
 }
 
 void CEditBox::OnBnClickedBtnSave()
 {
 	int len;
+	char *buf;
 	CFile cf;
-	WCHAR *pstr;
-	CHAR  *pbuff;
 	CString name;
+	CString text;
+	
+	m_editTable.GetWindowText(text);
+	len = UnicodeToUTF8(text, NULL, 0) + 1;
+	buf = (char *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY, len);
+	if(buf == NULL)
+	{
+		MessageBox(L"内存不足!",L"操作失败",MB_OK|MB_ICONINFORMATION);
+		return;
+	}
+	len = UnicodeToUTF8(text, buf, len);
+
 	CFileDialog fd(0,NULL,NULL,OFN_OVERWRITEPROMPT|OFN_ENABLESIZING,L"所有文件|*.*||");
 	if(fd.DoModal()!=IDOK)
 	{
+		HeapFree(GetProcessHeap(), 0, buf);
 		return;
 	}
 	name = fd.GetPathName();
 	if(!cf.Open(name,CFile::modeCreate|CFile::modeReadWrite|CFile::shareDenyNone))
 	{
+		HeapFree(GetProcessHeap(), 0, buf);
 		MessageBox(L"无法创建文件!",L"保存失败",MB_OK|MB_ICONINFORMATION);
 		return;
 	}
-	len = m_editTable.GetWindowTextLength();
-	pstr = (WCHAR*)malloc(len*2+2);
-	pbuff= (CHAR*)malloc(len*2+2);
-	m_editTable.GetWindowText(pstr,len+1);
-	len = UnicodeToUTF8(pstr,pbuff,len*2+2);
-	cf.Write(pbuff,len-1);
-	free(pstr);
-	free(pbuff);
+	cf.Write(buf, len - 1);
 	cf.Close();
+	HeapFree(GetProcessHeap(), 0, buf);
 }
 
 void CEditBox::OnBnClickedBtnNum()
@@ -139,6 +147,37 @@ void CEditBox::OnBnClickedBtnLetter()
 	m_editTable.ReplaceSel(L"abcdefghijklmnopqrstuvwxyz");
 	m_editTable.ReplaceSel(L"ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 	m_editTable.SetFocus();
+}
+
+void CEditBox::OnBnClickedBtnDedup()
+{
+	int i;
+	int len;
+	int cnt;
+	WCHAR ch;
+	WCHAR *buf;
+	CString text;
+
+	m_editTable.GetWindowText(text);
+	cnt = 0;
+	len = text.GetLength();
+	buf = (WCHAR *)HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY, (len + 1) * sizeof(WCHAR));
+	if(buf == NULL)
+	{
+		MessageBox(L"内存不足!",L"操作失败",MB_OK|MB_ICONINFORMATION);
+		return;
+	}
+	for(i=0; i<len; i++)
+	{
+		ch = text.GetAt(i);
+		if(wcschr(buf, ch) == NULL)
+		{
+			buf[cnt] = ch;
+			cnt++;
+		}
+	}
+	m_editTable.SetWindowText(buf);
+	HeapFree(GetProcessHeap(), 0, buf);
 }
 
 void CEditBox::OnBnClickedOk()

@@ -38,16 +38,18 @@ static WCHAR szLicense[]=
 static WCHAR szVersion[]=
 {
 	L"软件名称: 点阵字库生成工具\r\n"
-	L"软件版本: 1.2.0\r\n"
-	L"编译日期: 2018.07.31\r\n"
-	L"软件作者: 星沉地动\r\n"
-	L"联系方式: 446252221@qq.com\r\n"
+	L"软件版本: 1.3.0\r\n"
+	L"编译日期: 2020.10.11\r\n"
+	L"软件作者: 蒋晓岗\r\n"
+	L"联系方式: QQ:1342600318\r\n"
+	L"电子邮箱: kerndev@foxmail.com\r\n"
 };
 
 BOOL CAboutBox::OnInitDialog()
 {
 	CDialog::OnInitDialog();
-	SetDlgItemText(IDC_EDIT1,szVersion);
-	SetDlgItemText(IDC_EDIT2,szLicense);
+	SetWindowText(L"关于");
+	SetDlgItemText(IDC_EDIT1, szVersion);
+	SetDlgItemText(IDC_EDIT2, szLicense);
 	return TRUE;
 }
