@@ -38,7 +38,7 @@ static int UnicodeToUTF8(const WCHAR* input, char* output, int size)
     return WideCharToMultiByte(CP_UTF8, 0, input, 1, output, size, NULL, NULL);		
 }
 
-//生成C文件 
+//生成CPP文件 
 BOOL CFileMaker::MakeCppFile(CBitFont* pBitFont, CCharset* pCharset, CFile* pFile, int scan, BOOL msb, BOOL var_width)
 {
 	INT i;
@@ -66,10 +66,27 @@ BOOL CFileMaker::MakeCppFile(CBitFont* pBitFont, CCharset* pCharset, CFile* pFil
         return FALSE;
     }
 
-	len = sprintf_s(text, text_size,"static const unsigned char bits[][%d]=\r\n{\r\n",bits_size);
-	pFile->Write(text,len);
+	count = pCharset->GetCharCount();
+	len = sprintf_s(text, text_size,"static const unsigned int   char_count=%d;\r\n", count);
+	pFile->Write(text, len);
 
-    count = pCharset->GetCharCount();
+	len = sprintf_s(text, text_size,"static const unsigned char *char_table=\"");
+	pFile->Write(text, len);
+
+	for(i=0;i<count;i++)
+	{
+		ch = pCharset->GetChar(i);
+		UnicodeToUTF8(&ch, utf8, 8);
+		len = sprintf_s(text, text_size, "%s", utf8);
+		pFile->Write(text,len);
+	}
+
+	len = sprintf_s(text, text_size,"\";\r\n");
+	pFile->Write(text, len);
+
+	len = sprintf_s(text, text_size,"static const unsigned char  char_bits[][%d]=\r\n{\r\n",bits_size);
+	pFile->Write(text,len);
+    
 	for(i=0;i<count;i++)
 	{
 		ch = pCharset->GetChar(i);
